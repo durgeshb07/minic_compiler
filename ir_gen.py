@@ -91,8 +91,8 @@ class Quad:
             return f"    ifFalse {a1} goto {a2}"
         if r == "goto":                                  # unconditional jump
             return f"    goto {a1}"
-        if r == "print":                                 # print
-            return f"    print {a1}"
+        if r == "printf":                     # print
+            return f"    printf {a1}"
         if r == "return":                                # return
             return f"    return {a1}" if a1 else "    return"
 
@@ -226,9 +226,9 @@ class IRGenerator:
     def _stmt_ExprStmt(self, node: dict) -> None:
         self._gen_expr(node["expr"])
 
-    def _stmt_Print(self, node: dict) -> None:
-        place = self._gen_expr(node["arg"])
-        self._emit("print", place, "", "")
+    def _stmt_Printf(self, node: dict) -> None:
+       place = self._gen_expr(node["arg"])
+       self._emit("printf", place, "", "")
 
     def _stmt_Return(self, node: dict) -> None:
         if node["val"] is not None:

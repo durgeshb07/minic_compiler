@@ -302,7 +302,7 @@ class SemanticAnalyser:
         self._warn_unused_in_scope(exiting)
         return "void"
 
-    def _visit_Print(self, node: dict) -> str:
+    def _visit_Printf(self, node: dict) -> str:
         arg_type = self._visit(node["arg"])
         if arg_type == "void":
             self.reporter.report_exception(

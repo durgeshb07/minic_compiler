@@ -1,7 +1,7 @@
 Three-Address Code
 ==================================================
 x = 5
-print x
+printf x
 y = 3.14
 alloc list[5]
 list[0] = 10
@@ -22,18 +22,18 @@ t6 = i + 1
 i = t6
 goto L0
 L1:
-print sum
+printf sum
 t7 = y * 2.0
 result = t7
-print result
+printf result
 score = 85
 t8 score 90 GE
 ifFalse t8 goto L2
-print score
+printf score
 goto L3
 L2:
 grade = 2
-print grade
+printf grade
 L3:
 n = 5
 fact = 1
@@ -46,4 +46,4 @@ t11 = n - 1
 n = t11
 goto L4
 L5:
-print fact
+printf fact

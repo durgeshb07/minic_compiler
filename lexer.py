@@ -32,7 +32,7 @@ class Token:
 # ══════════════════════════════════════════════════════════════════════════════
 
 KEYWORDS: set[str] = {
-    "int", "float", "if", "else", "while", "for", "print", "return",
+    "int", "float", "if", "else", "while", "for", "printf", "return",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -289,7 +289,7 @@ _CATEGORY_COLOUR = {
     # Keywords  — cyan
     "INT": "\033[36m", "FLOAT": "\033[36m", "IF": "\033[36m",
     "ELSE": "\033[36m", "WHILE": "\033[36m", "FOR": "\033[36m",
-    "PRINT": "\033[36m", "RETURN": "\033[36m",
+    "PRINTF": "\033[36m", "RETURN": "\033[36m",
     # Literals  — yellow
     "INT_LIT": "\033[33m", "FLOAT_LIT": "\033[33m", "STRING_LIT": "\033[33m",
     # Identifiers  — green

@@ -1,7 +1,6 @@
-// test_program.mc  —  exercises all Mini-C features
 
 int x = 5;
-print(x);
+printf(x);
 
 float y = 3.14;
 int list[5];
@@ -15,17 +14,17 @@ int i;
 for (i = 0; i < 5; i++) {
     sum = sum + i;
 }
-print(sum);
+printf(sum);
 
 float result = y * 2.0;
-print(result);
+printf(result);
 
 int score = 85;
 if (score >= 90) {
-    print(score);
+    printf(score);
 } else {
     int grade = 2;
-    print(grade);
+    printf(grade);
 }
 
 int n = 5;
@@ -34,4 +33,4 @@ while (n > 1) {
     fact = fact * n;
     n = n - 1;
 }
-print(fact);
+printf(fact);

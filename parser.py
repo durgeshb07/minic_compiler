@@ -136,7 +136,7 @@ class Parser:
         if t == "IF":               return self._parse_if()
         if t == "WHILE":            return self._parse_while()
         if t == "FOR":              return self._parse_for()
-        if t == "PRINT":            return self._parse_print()
+        if t == "PRINTF":            return self._parse_printf()
         if t == "RETURN":           return self._parse_return()
         if t == "LBRACE":           return self._parse_block()
         if t == "ELSE":
@@ -244,8 +244,8 @@ class Parser:
         return Node(type="For", init=init, cond=cond, update=update,
                     body=body, line=line)
 
-    def _parse_print(self) -> Node:
-        kw   = self._consume("PRINT")
+    def _parse_printf(self) -> Node:
+        kw   = self._consume("PRINTF")
         line = kw.line
         lp   = self._peek()
         self._require("LPAREN", line)
@@ -255,7 +255,7 @@ class Parser:
         arg = self._parse_expr()
         self._require("RPAREN", line)
         self._require_semi()
-        return Node(type="Print", arg=arg, line=line)
+        return Node(type="Printf", arg=arg, line=line)
 
     def _parse_return(self) -> Node:
         kw   = self._consume("RETURN")
