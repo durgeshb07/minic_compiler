@@ -1,120 +1,201 @@
 """
 main.py  —  Mini-C Compiler Driver
+
 Usage:
-    python3 main.py <source_file.mc>
-    python3 main.py test_program.mc
+    python3 main.py <source.mc> [--ast] [--quads] [--no-tac]
+
+Flags:
+    --ast      Print the Abstract Syntax Tree after parsing
+    --quads    Print the raw quadruple table as well as the TAC listing
+    --no-tac   Skip the TAC display (still writes the .tac file)
+
+Pipeline:
+    1. Lexical Analysis   → token list  + token table printed
+    2. Syntax Analysis    → AST
+    3. Semantic Analysis  → symbol table  (errors collected via ErrorReporter)
+    4. IR Generation      → TAC / quadruples
 """
 
+from __future__ import annotations
 import sys
+import os
 
-from lexer    import tokenize
-from parser   import Parser
+from errors   import ErrorReporter, CompilerError
+from lexer    import tokenize, print_token_table
+from parser   import Parser, print_ast
 from semantic import SymbolTable, SemanticAnalyser
 from ir_gen   import IRGenerator
-from errors   import LexError, ParseError, SemanticError
 
 
-def compile_file(path: str):
+# ══════════════════════════════════════════════════════════════════════════════
+#  Helpers
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _banner(title: str, width: int = 64) -> None:
+    bar = "═" * width
+    print()
+    print(bar)
+    print(f"  {title}")
+    print(bar)
+
+
+def _stage_header(number: int, name: str) -> None:
+    print(f"\n[ Stage {number} ]  {name} …")
+
+
+def _stage_ok(detail: str = "") -> None:
+    tick = "  ✓"
+    print(f"{tick}  {detail}" if detail else tick)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Compiler pipeline
+# ══════════════════════════════════════════════════════════════════════════════
+
+def compile_file(path: str, *, show_ast: bool, show_quads: bool, show_tac: bool) -> None:
+
     # ── Read source ──────────────────────────────────────────────────────────
-    try:
-        with open(path) as f:
-            source = f.read()
-    except FileNotFoundError:
-        print(f"Error: file '{path}' not found.")
+    if not os.path.isfile(path):
+        print(f"Error: file '{path}' not found.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\n{'═'*60}")
-    print(f"  Mini-C Compiler  —  {path}")
-    print(f"{'═'*60}\n")
+    with open(path) as f:
+        source = f.read()
 
-    # ── Stage 1: Lexical Analysis ────────────────────────────────────────────
-    print("[ Stage 1 ] Lexical Analysis …")
+    source_lines = source.splitlines()
+    filename     = os.path.basename(path)
+
+    _banner(f"Mini-C Compiler  —  {filename}")
+
+    # Shared reporter (used by ALL stages)
+    reporter = ErrorReporter(
+        source_lines     = source_lines,
+        filename         = filename,
+        fatal_threshold  = 1,       # stop pipeline on first hard error
+    )
+
+    # ════════════════════════════════════════════════════════════════════════
+    #  Stage 1 — Lexical Analysis
+    # ════════════════════════════════════════════════════════════════════════
+    _stage_header(1, "Lexical Analysis")
+
+    tokens = tokenize(source, reporter, filename)
+
+    # Always print the token table immediately after lexing
+    print_token_table(tokens)
+
+    # Stop if there were lex errors
     try:
-        tokens = tokenize(source)
-    except LexError as e:
-        print(f"  {e}")
+        reporter.raise_if_errors()
+    except CompilerError as e:
+        print(f"\n  Lexical analysis failed: {e}", file=sys.stderr)
+        reporter.print_summary()
         sys.exit(1)
 
-    print(f"  {len(tokens)-1} token(s) produced.\n")
+    non_eof = [t for t in tokens if t.type != "EOF"]
+    _stage_ok(f"{len(non_eof)} token(s) produced")
 
-    # ── Stage 2: Syntax Analysis ─────────────────────────────────────────────
-    print("[ Stage 2 ] Syntax Analysis (parsing) …")
+    # ════════════════════════════════════════════════════════════════════════
+    #  Stage 2 — Syntax Analysis
+    # ════════════════════════════════════════════════════════════════════════
+    _stage_header(2, "Syntax Analysis (Parsing)")
+
     try:
         parser = Parser(tokens)
         ast    = parser.parse_program()
-    except ParseError as e:
-        print(f"  {e}")
+    except CompilerError as e:
+        reporter.report_exception(e)
+        reporter.print_summary()
         sys.exit(1)
 
-    print("  Parse successful — AST constructed.\n")
+    _stage_ok("AST constructed successfully")
 
-    # Optional: print AST
-    if "--ast" in sys.argv:
-        _print_ast(ast)
+    if show_ast:
+        _banner("ABSTRACT SYNTAX TREE")
+        print_ast(ast)
 
-    # ── Stage 3: Semantic Analysis ───────────────────────────────────────────
-    print("[ Stage 3 ] Semantic Analysis …")
+    # ════════════════════════════════════════════════════════════════════════
+    #  Stage 3 — Semantic Analysis
+    # ════════════════════════════════════════════════════════════════════════
+    _stage_header(3, "Semantic Analysis")
+
     sym_table = SymbolTable()
-    analyser  = SemanticAnalyser(sym_table)
+    analyser  = SemanticAnalyser(sym_table, reporter)
     analyser.analyse(ast)
 
+    # Always print the symbol table
     sym_table.display()
 
-    if analyser.errors:
-        print("  Semantic errors detected:")
-        for err in analyser.errors:
-            print(err)
-        print()
-        # Print errors but continue to IR so partial output is still useful
-        # (remove 'sys.exit(1)' to suppress hard stop on semantic errors)
+    try:
+        reporter.raise_if_errors()
+    except CompilerError as e:
+        print(f"  Semantic analysis failed — see errors above.", file=sys.stderr)
+        reporter.print_summary()
         sys.exit(1)
-    else:
-        print("  No semantic errors.\n")
 
-    # ── Stage 4: IR Generation ────────────────────────────────────────────────
-    print("[ Stage 4 ] Generating Intermediate Representation (TAC) …")
-    ir = IRGenerator()
+    _stage_ok("No semantic errors")
+
+    # ════════════════════════════════════════════════════════════════════════
+    #  Stage 4 — IR Generation
+    # ════════════════════════════════════════════════════════════════════════
+    _stage_header(4, "Intermediate Representation (TAC) Generation")
+
+    ir = IRGenerator(reporter)
     ir.generate(ast)
 
-    ir.display()
-    ir.display_quads()
+    try:
+        reporter.raise_if_errors()
+    except CompilerError as e:
+        print(f"  IR generation failed — see errors above.", file=sys.stderr)
+        reporter.print_summary()
+        sys.exit(1)
 
-    # Optionally write TAC to a file
-    tac_path = path.replace(".mc", ".tac")
-    with open(tac_path, "w") as f:
-        f.write("Three-Address Code\n")
-        f.write("=" * 50 + "\n")
-        for q in ir.quads:
-            f.write(q.pretty().strip() + "\n")
-    print(f"  TAC written to '{tac_path}'.\n")
+    if show_tac:
+        ir.display_tac()
 
-    print("  Compilation complete ✓\n")
+    if show_quads:
+        ir.display_quads()
+
+    # Write TAC to file
+    tac_path = path.rsplit(".", 1)[0] + ".tac"
+    ir.write_tac_file(tac_path)
+
+    _stage_ok(f"{len(ir.quads)} quadruple(s) generated")
+
+    # ════════════════════════════════════════════════════════════════════════
+    #  Final summary
+    # ════════════════════════════════════════════════════════════════════════
+    reporter.print_summary()
+    print()
 
 
-def _print_ast(node, depth=0):
-    if not isinstance(node, dict):
-        return
-    pad = "  " * depth
-    t = node.get("type", "?")
-    extras = []
-    for k in ("name", "dtype", "op", "value", "size"):
-        if k in node:
-            extras.append(f"{k}={node[k]!r}")
-    print(f"{pad}{t}({', '.join(extras)})")
-    for k in ("body", "then", "els", "cond", "init", "update",
-              "left", "right", "expr", "arg", "val", "index"):
-        child = node.get(k)
-        if child is None:
-            continue
-        if isinstance(child, list):
-            for c in child:
-                _print_ast(c, depth + 1)
-        else:
-            _print_ast(child, depth + 1)
+# ══════════════════════════════════════════════════════════════════════════════
+#  Entry point
+# ══════════════════════════════════════════════════════════════════════════════
+
+def main() -> None:
+    args = sys.argv[1:]
+
+    if not args or args[0].startswith("--"):
+        print("Usage: python3 main.py <source.mc> [--ast] [--quads] [--no-tac]")
+        print()
+        print("  --ast      Print the Abstract Syntax Tree")
+        print("  --quads    Print raw quadruple table (alongside TAC)")
+        print("  --no-tac   Suppress the TAC listing (file still written)")
+        sys.exit(0)
+
+    source_path = args[0]
+    show_ast    = "--ast"    in args
+    show_quads  = "--quads"  in args
+    show_tac    = "--no-tac" not in args
+
+    compile_file(
+        source_path,
+        show_ast   = show_ast,
+        show_quads = show_quads,
+        show_tac   = show_tac,
+    )
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python3 main.py <source.mc> [--ast]")
-        sys.exit(1)
-    compile_file(sys.argv[1])
+    main()

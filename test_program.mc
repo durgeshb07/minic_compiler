@@ -1,6 +1,8 @@
 // test_program.mc  —  exercises all Mini-C features
 
 int x = 5;
+print(x);
+
 float y = 3.14;
 int list[5];
 
