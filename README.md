@@ -96,14 +96,14 @@ float y = 2.5;
 float z = x + y;
 
 if (z > 5) {
-    print(z);
+    printf(z);
 }
 
 for (int i = 0; i < 3; i++) {
     x++;
 }
 
-print(x);
+printf(x);
 ```
 
 ---
@@ -208,7 +208,7 @@ t0 = x + y
 z = t0
 
 ifFalse z > 5 goto L0
-print z
+printf z
 L0:
 
 i = 0
@@ -221,7 +221,7 @@ i = i + 1
 goto L1
 
 L2:
-print x
+printf x
 ```
 
 ---
