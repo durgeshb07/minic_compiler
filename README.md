@@ -68,10 +68,8 @@ mini-c-compiler/
 ├── lexer.py
 ├── parser.py
 ├── semantic.py
-├── ir_generator.py
-├── symbol_table.py
-├── diagnostics.py
-├── ast_nodes.py
+├── ir_gen.py
+├── errors.py
 ├── main.py
 │
 ├── test_program.mc
